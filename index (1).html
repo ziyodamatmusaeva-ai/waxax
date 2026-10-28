@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bahor fast food – hot-dog, burger, lavash</title>
+<meta name="description" content="Bahor: issiq hot-doglar, burgerlar va lavash. Buyurtma bering, uyingizga olib boramiz.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gloock&family=Manrope:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{
+  --leaf:#1d3b2a; --leaf-2:#2c5540; --blossom:#f3c9d1; --blossom-2:#e8a9b6;
+  --petal:#fbf6f6; --lime:#c5d86d; --bark:#3a2420;
+  --display:'Gloock',Georgia,'Times New Roman',serif;
+  --body:'Manrope',system-ui,-apple-system,'Segoe UI',Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:var(--body);color:var(--bark);background:var(--leaf-2);line-height:1.6;font-size:17px}
+a{color:inherit}
+button{font-family:inherit;cursor:pointer}
+:focus-visible{outline:3px solid var(--lime);outline-offset:3px;border-radius:4px}
+.wrap{max-width:1080px;margin:0 auto;padding:0 22px}
+
+/* Xiralashtirilgan fon rasmi: img/fon.jpg */
+.bg{position:fixed;inset:-20px;z-index:-1;background:var(--leaf-2) url("img/fon.jpg") center/cover no-repeat;filter:blur(7px)}
+
+.nav{position:sticky;top:0;z-index:10;background:rgba(29,59,42,.94);backdrop-filter:blur(6px)}
+.nav .wrap{display:flex;align-items:center;justify-content:space-between;height:60px}
+.logo{font-family:var(--display);font-size:26px;color:var(--blossom);text-decoration:none}
+.nav ul{display:flex;gap:22px;list-style:none}
+.nav ul a{color:var(--petal);text-decoration:none;font-weight:500;font-size:15px}
+.nav ul a:hover{color:var(--lime)}
+
+/* Katta sarlavha: aylantirganda harflar yo'qoladi */
+.hero{position:relative;overflow:hidden;background:rgba(29,59,42,.66);color:var(--petal);padding:70px 0 100px;min-height:88vh}
+.hero h1{font-family:var(--display);font-weight:400;font-size:clamp(120px,30vw,340px);line-height:1;color:var(--blossom);letter-spacing:-.02em;white-space:nowrap}
+.hero h1 span{display:inline-block;will-change:transform,opacity}
+.hero p{max-width:30ch;font-size:clamp(19px,2.6vw,24px);margin:20px 0 34px}
+.btn{display:inline-block;padding:14px 26px;border-radius:999px;font-weight:700;text-decoration:none;font-size:16px;border:0;transition:transform .2s,background .2s}
+.btn-main{background:var(--blossom);color:var(--leaf)}
+.btn-main:hover{background:var(--lime);transform:translateY(-2px)}
+.btn-dark{background:var(--leaf);color:var(--blossom)}
+.btn-dark:hover{background:var(--leaf-2)}
+.btn[disabled]{opacity:.5;cursor:default}
+.petal{position:absolute;top:-30px;width:16px;height:22px;background:var(--blossom);border-radius:150% 0 150% 0;opacity:.85;pointer-events:none;animation:fall linear infinite}
+@keyframes fall{
+  0%{transform:translate(0,-40px) rotate(0)}
+  50%{transform:translate(40px,50vh) rotate(180deg)}
+  100%{transform:translate(-20px,105vh) rotate(360deg)}
+}
+
+.menu{background:rgba(251,246,246,.74);padding:90px 0 110px}
+h2{font-family:var(--display);font-weight:400;font-size:clamp(36px,6vw,56px);line-height:1.1;color:var(--leaf);margin-bottom:12px}
+.lead{max-width:46ch;margin-bottom:26px;color:var(--leaf-2)}
+
+/* Kategoriya ro'yxati */
+.catbar{position:relative;display:inline-block;margin-bottom:26px}
+.catbtn{display:flex;align-items:center;gap:14px;padding:12px 24px;border-radius:999px;background:var(--leaf);color:var(--blossom);border:0;font-family:var(--display);font-size:26px}
+.catbtn::after{content:"";width:10px;height:10px;border-right:3px solid currentColor;border-bottom:3px solid currentColor;transform:rotate(45deg) translateY(-3px);transition:transform .2s}
+.catbtn[aria-expanded="true"]::after{transform:rotate(-135deg) translateY(-3px)}
+.catlist{display:none;position:absolute;top:calc(100% + 8px);left:0;min-width:100%;z-index:5;list-style:none;background:#fff;border:2px solid var(--blossom);border-radius:18px;padding:8px;box-shadow:0 12px 30px rgba(29,59,42,.25)}
+.catlist.on{display:block}
+.catlist button{display:flex;justify-content:space-between;gap:28px;width:100%;padding:11px 16px;border:0;background:transparent;border-radius:12px;font-size:17px;font-weight:700;color:var(--leaf);text-align:left}
+.catlist button:hover{background:var(--petal)}
+.catlist button[aria-current="true"]{background:var(--blossom)}
+
+/* Slayder */
+.stage{position:relative;display:grid;grid-template-columns:56px 1fr 56px;gap:16px;align-items:center}
+.arrow{width:56px;height:56px;border-radius:50%;border:2px solid var(--leaf);background:#fff;color:var(--leaf);font-size:26px;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .2s,color .2s}
+.arrow:hover{background:var(--leaf);color:var(--blossom)}
+.arrow[disabled]{opacity:.3;cursor:default;background:#fff;color:var(--leaf)}
+.slide{display:grid;grid-template-columns:1.1fr 1fr;background:#fff;border:2px solid var(--blossom);border-radius:28px;overflow:hidden}
+.slide.r{animation:inR .35s ease}
+.slide.l{animation:inL .35s ease}
+@keyframes inR{from{opacity:0;transform:translateX(28px)}to{opacity:1;transform:none}}
+@keyframes inL{from{opacity:0;transform:translateX(-28px)}to{opacity:1;transform:none}}
+.sp{position:relative;display:flex;align-items:center;justify-content:center;min-height:400px;background:var(--blossom);font-size:120px}
+.sp img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.si{padding:30px;display:flex;flex-direction:column;justify-content:center}
+.si h3{font-family:var(--display);font-weight:400;font-size:clamp(28px,4vw,40px);color:var(--leaf);line-height:1.1}
+.si .price{font-size:24px;font-weight:700;color:var(--leaf-2);margin:8px 0 16px}
+.si h4{font-size:16px;color:var(--leaf);margin-bottom:6px}
+.si ul{margin:0 0 22px 20px}
+.count{text-align:center;margin-top:18px;font-weight:700;color:var(--leaf-2)}
+.row{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.qty{display:flex;align-items:center;gap:12px}
+.qty button{width:38px;height:38px;border-radius:50%;border:2px solid var(--leaf);background:transparent;font-size:20px;color:var(--leaf)}
+.qty span{min-width:22px;text-align:center;font-weight:700}
+
+.about{background:rgba(243,201,209,.78);padding:90px 0}
+.about p.big{font-family:var(--display);font-size:clamp(28px,4.6vw,48px);line-height:1.2;color:var(--leaf);max-width:22ch}
+.about p.small{max-width:52ch;margin-top:26px}
+
+.contact{background:rgba(29,59,42,.74);color:var(--petal);padding:90px 0}
+.contact h2{color:var(--blossom)}
+.info{display:grid;grid-template-columns:repeat(2,1fr);gap:34px 48px;margin:34px 0 34px}
+.info h3{font-family:var(--display);font-weight:400;font-size:22px;color:var(--lime);margin-bottom:6px}
+.info a{text-decoration:none;border-bottom:1px solid var(--blossom-2)}
+.info a:hover{color:var(--lime)}
+.map{height:240px;border-radius:16px;overflow:hidden;border:2px solid var(--blossom-2);background:var(--blossom);color:var(--leaf);display:flex;align-items:center;justify-content:center;text-align:center;padding:12px}
+#cMap{height:340px;margin-bottom:24px}
+.btns{display:flex;flex-wrap:wrap;gap:12px}
+footer{background:var(--leaf);color:var(--blossom-2);text-align:center;padding:22px;font-size:14px}
+
+.bar{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:20;display:none;align-items:center;gap:14px;padding:14px 26px;border-radius:999px;background:var(--leaf);color:var(--blossom);font-weight:700;font-size:16px;border:2px solid var(--lime);box-shadow:0 8px 24px rgba(29,59,42,.35)}
+.bar.on{display:flex}
+
+dialog{margin:auto;width:min(520px,calc(100% - 28px));max-height:calc(100% - 28px);overflow:auto;border:0;border-radius:24px;background:var(--petal);color:var(--bark);padding:0}
+dialog::backdrop{background:rgba(29,59,42,.6)}
+.dhead{display:flex;justify-content:flex-end;padding:12px 14px 0}
+.x{width:40px;height:40px;border-radius:50%;border:2px solid var(--blossom-2);background:transparent;font-size:20px;color:var(--leaf)}
+.dbody{padding:0 26px 26px}
+.dbody h3{font-family:var(--display);font-weight:400;font-size:30px;color:var(--leaf);line-height:1.15;margin-bottom:6px}
+.line{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:2px dotted var(--blossom-2)}
+.line .qty button{width:32px;height:32px;font-size:17px}
+.sum{display:flex;justify-content:space-between;gap:12px;margin-top:10px;color:var(--leaf)}
+.sum.t{font-weight:700;font-size:19px;margin:12px 0 16px}
+label{display:block;font-weight:700;font-size:15px;margin:12px 0 4px;color:var(--leaf)}
+input,textarea{width:100%;padding:12px 14px;border:2px solid var(--blossom-2);border-radius:12px;font:inherit;background:#fff;color:var(--bark)}
+textarea{resize:vertical;min-height:70px}
+#dMap{margin:8px 0 10px}
+.dinfo{font-weight:500;color:var(--leaf-2);min-height:1.5em;margin-bottom:6px}
+.btn-sm{padding:9px 18px;font-size:14px;background:transparent;border:2px solid var(--leaf);color:var(--leaf)}
+.msg{font-weight:700;font-size:14px;margin:10px 0;min-height:1.3em;color:#a3243b}
+.msg.ok{color:var(--leaf-2)}
+
+@media (max-width:700px){
+  .stage{grid-template-columns:1fr}
+  .slide{grid-template-columns:1fr}
+  .sp{min-height:250px}
+  .arrow{position:absolute;top:100px;z-index:2;width:46px;height:46px;background:rgba(255,255,255,.92)}
+  .arrow.prev{left:10px}
+  .arrow.next{right:10px}
+  .info{grid-template-columns:1fr}
+  .hero{padding:50px 0 70px;min-height:80vh}
+  .nav ul{gap:14px}
+}
+@media (max-width:380px){ .nav ul li:nth-child(2){display:none} }
+@media (prefers-reduced-motion:reduce){
+  .petal{display:none}
+  html{scroll-behavior:auto}
+  .btn,.arrow,.catbtn::after{transition:none}
+  .slide.r,.slide.l{animation:none}
+}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"></div>
+
+<nav class="nav">
+  <div class="wrap">
+    <a class="logo" href="#top">Bahor</a>
+    <ul>
+      <li><a href="#menyu">Menyu</a></li>
+      <li><a href="#haqida">Biz haqimizda</a></li>
+      <li><a href="#aloqa">Aloqa</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <h1 id="title" aria-label="Bahor"><span aria-hidden="true">B</span><span aria-hidden="true">a</span><span aria-hidden="true">h</span><span aria-hidden="true">o</span><span aria-hidden="true">r</span></h1>
+    <p>Issiq hot-doglar, burgerlar va lavash. Buyurtma bering, uyingizgacha olib boramiz.</p>
+    <a class="btn btn-main" href="#menyu">Buyurtma berish</a>
+  </div>
+</header>
+
+<main>
+<section class="menu" id="menyu">
+  <div class="wrap">
+    <h2>Menyu</h2>
+    <p class="lead">Turkumni tanlang va strelkalar bilan taomlarni ko'ring.</p>
+    <div class="catbar">
+      <button class="catbtn" id="catBtn" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="catList"></button>
+      <ul class="catlist" id="catList"></ul>
+    </div>
+    <div class="stage" id="stage" role="group" aria-roledescription="slayder" aria-label="Taomlar">
+      <button class="arrow prev" id="prev" type="button" aria-label="Oldingi taom">‹</button>
+      <div class="slide" id="slide" aria-live="polite"></div>
+      <button class="arrow next" id="next" type="button" aria-label="Keyingi taom">›</button>
+    </div>
+    <p class="count" id="count"></p>
+  </div>
+</section>
+
+<section class="about" id="haqida">
+  <div class="wrap">
+    <p class="big">Bahor, dunyo uyg'onadigan payt. Taomlarimiz ham shunday: yangi va issiq.</p>
+    <p class="small">Bulkalarni har kuni ertalab pishiramiz, go'shtni o'zimiz tayyorlaymiz. Buyurtmangiz tayyor bo'lishi bilan kuryer yo'lga chiqadi.</p>
+  </div>
+</section>
+
+<section class="contact" id="aloqa">
+  <div class="wrap">
+    <h2>Bizni toping</h2>
+    <div class="info">
+      <div>
+        <h3>Manzil</h3>
+        <!-- Haqiqiy manzilni yozing: -->
+        <p>Farg'ona viloyati, Rishton tumani, ko'cha nomi, uy raqami</p>
+      </div>
+      <div>
+        <h3>Ish vaqti</h3>
+        <p>Har kuni 10:00 dan 23:00 gacha</p>
+      </div>
+      <div>
+        <h3>Telefon</h3>
+        <!-- Haqiqiy raqamni yozing (ikki joyda): -->
+        <p><a href="tel:+998901234567">+998 90 123 45 67</a></p>
+      </div>
+      <div>
+        <h3>Yetkazib berish</h3>
+        <p id="dText"></p>
+      </div>
+    </div>
+    <div class="map" id="cMap">Xarita yuklanmadi. Internetni tekshiring.</div>
+    <div class="btns">
+      <a class="btn btn-main" id="route" href="#" target="_blank" rel="noopener">Yo'nalish olish</a>
+      <a class="btn btn-main" href="tel:+998901234567">Qo'ng'iroq qilish</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>© 2026 Bahor</footer>
+
+<button class="bar" id="bar" type="button"></button>
+
+<dialog id="dCart" aria-labelledby="cTitle">
+  <div class="dhead"><button class="x" type="button" data-close aria-label="Yopish">✕</button></div>
+  <div class="dbody">
+    <h3 id="cTitle">Savat</h3>
+    <div id="cLines"></div>
+    <div class="sum"><span>Taomlar</span><span id="cSub"></span></div>
+    <div class="sum"><span>Yetkazish</span><span id="cFee"></span></div>
+    <div class="sum t"><span>Jami</span><span id="cTotal"></span></div>
+    <label for="fName">Ismingiz</label>
+    <input id="fName" autocomplete="name">
+    <label for="fPhone">Telefon raqamingiz</label>
+    <input id="fPhone" type="tel" autocomplete="tel" placeholder="+998 90 000 00 00">
+    <label for="fAddr">Manzil (mahalla, ko'cha, uy, mo'ljal)</label>
+    <textarea id="fAddr"></textarea>
+    <label>Xaritada joylashuvingizni belgilang</label>
+    <div class="map" id="dMap">Xarita yuklanmadi.</div>
+    <button class="btn btn-sm" type="button" id="locBtn">Joylashuvimni aniqlash</button>
+    <p class="dinfo" id="dInfo" role="status"></p>
+    <p class="msg" id="cMsg" role="alert"></p>
+    <button class="btn btn-dark" type="button" id="cSend" style="width:100%">Buyurtma berish</button>
+  </div>
+</dialog>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+(function(){
+  /* Buyurtmalar Firebase (Firestore) ga yoziladi. Sozlangandan keyin ikki qatorni to'ldiring: */
+  var FB_PROJECT="";
+  var FB_KEY="";
+
+  /* Kafening haqiqiy joylashuvi: Google Maps'da kafeni o'ng tugma bilan bosib, koordinatani nusxalang */
+  var CAFE={lat:40.35667,lng:71.28472}; /* hozircha Rishton markazi, kafening aniq joyiga almashtiring */
+  /* Yetkazish: boshlang'ich narx, har km narxi, eng uzoq masofa (km), tayyorlash vaqti (daq), kuryer tezligi (km/soat), yo'l koeffitsienti */
+  var D={base:8000,perKm:2000,maxKm:8,prep:15,speed:25,roadK:1.3};
+
+  /* Taomlar. Rasm: img/<id>.jpg. Nom, narx va tarkibni o'zingiznikiga almashtiring */
+  var M=[
+    {id:1,c:"Hot-doglar",n:"Qirollik hot-dogi",p:28000,e:"🌭",d:["Uzun yumshoq bulka","Mol go'shtli sosiska","Eritilgan pishloq","Tuzlangan bodring","Qovurilgan piyoz","Ketchup va gorchitsa sousi"]},
+    {id:2,c:"Hot-doglar",n:"Klassik hot-dog",p:18000,e:"🌭",d:["Bulka","Sosiska","Ketchup","Mayonez","Gorchitsa"]},
+    {id:3,c:"Hot-doglar",n:"Pishloqli hot-dog",p:22000,e:"🌭",d:["Bulka","Sosiska","Cheddar pishloq sousi","Qovurilgan piyoz"]},
+    {id:4,c:"Burgerlar",n:"Bahor burger",p:35000,e:"🍔",d:["Mol go'shtidan kotlet","Cheddar pishloq","Salat bargi","Pomidor","Tuzlangan bodring","Maxsus sous"]},
+    {id:5,c:"Burgerlar",n:"Chizburger",p:30000,e:"🍔",d:["Mol go'shtidan kotlet","Ikki qavat pishloq","Piyoz","Ketchup"]},
+    {id:6,c:"Burgerlar",n:"Chiken burger",p:28000,e:"🍔",d:["Qovurilgan tovuq filesi","Salat bargi","Mayonez","Pomidor"]},
+    {id:7,c:"Lavash",n:"Mol go'shtli lavash",p:32000,e:"🌯",d:["Yupqa lavash","Mol go'shti","Salat","Tuzlangan bodring","Sarimsoqli sous"]},
+    {id:8,c:"Lavash",n:"Tovuqli lavash",p:30000,e:"🌯",d:["Yupqa lavash","Tovuq go'shti","Salat","Pomidor","Sarimsoqli sous"]},
+    {id:9,c:"Yonida",n:"Kartoshka fri",p:14000,e:"🍟",d:["Qovurilgan kartoshka","Tuz","Ketchup (alohida)"]},
+    {id:10,c:"Yonida",n:"Naggets (6 dona)",p:22000,e:"🍗",d:["Tovuq go'shti bo'laklari","Un qoplamasi","Sous (alohida)"]},
+    {id:11,c:"Ichimliklar",n:"Cola 0,5 l",p:9000,e:"🥤",d:["Gazlangan ichimlik"]},
+    {id:12,c:"Ichimliklar",n:"Uy limonadi",p:12000,e:"🍋",d:["Limon","Yalpiz","Shakar","Muz"]},
+    {id:13,c:"Ichimliklar",n:"Issiq choy",p:8000,e:"🍵",d:["Ko'k yoki qora choy"]}
+  ];
+  var cats=[];
+  M.forEach(function(m){if(cats.indexOf(m.c)<0)cats.push(m.c)});
+  var cat=cats[0], idx=0, qty=1, cart={};
+  var pt=null, fee=0, km=0, far=false, dmap=null, dmark=null;
+
+  function $(id){return document.getElementById(id)}
+  function fmt(n){return String(n).replace(/\B(?=(\d{3})+(?!\d))/g," ")+" so'm"}
+  function byId(id){for(var i=0;i<M.length;i++)if(M[i].id===id)return M[i]}
+  function list(){return M.filter(function(m){return m.c===cat})}
+  function pic(m){return "<span>"+m.e+"</span><img src=\"img/"+m.id+".jpg\" alt=\""+m.n+"\" loading=\"lazy\" onerror=\"this.remove()\">"}
+
+  /* ---- Kategoriya ro'yxati ---- */
+  function drawCats(){
+    $("catBtn").textContent=cat;
+    $("catList").innerHTML="";
+    cats.forEach(function(c){
+      var li=document.createElement("li"),b=document.createElement("button");
+      b.type="button";
+      b.innerHTML="<span>"+c+"</span><span>"+M.filter(function(m){return m.c===c}).length+"</span>";
+      if(c===cat)b.setAttribute("aria-current","true");
+      b.onclick=function(){cat=c;idx=0;closeCats();drawCats();drawSlide(1)};
+      li.appendChild(b);$("catList").appendChild(li);
+    });
+  }
+  function closeCats(){$("catList").classList.remove("on");$("catBtn").setAttribute("aria-expanded","false")}
+  $("catBtn").onclick=function(e){
+    e.stopPropagation();
+    var on=$("catList").classList.toggle("on");
+    this.setAttribute("aria-expanded",on);
+  };
+  document.addEventListener("click",function(e){if(!e.target.closest(".catbar"))closeCats()});
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")closeCats()});
+
+  /* ---- Slayder ---- */
+  function drawSlide(dir){
+    var L=list(),m=L[idx];qty=1;
+    var s=$("slide");
+    s.innerHTML='<div class="sp">'+pic(m)+'</div><div class="si"><h3>'+m.n+'</h3><p class="price">'+fmt(m.p)+'</p><h4>Tarkibi</h4><ul>'+
+      m.d.map(function(x){return "<li>"+x+"</li>"}).join("")+'</ul><div class="row"><div class="qty">'+
+      '<button type="button" data-a="minus" aria-label="Kamaytirish">−</button><span id="sQ">1</span>'+
+      '<button type="button" data-a="plus" aria-label="Ko\'paytirish">+</button></div>'+
+      '<button class="btn btn-dark" type="button" data-a="add">Savatga qo\'shish</button></div></div>';
+    s.className="slide "+(dir>0?"r":"l");
+    $("count").textContent=(idx+1)+" / "+L.length;
+    $("prev").disabled=$("next").disabled=L.length<2;
+  }
+  function go(d){
+    var n=list().length;if(n<2)return;
+    idx=(idx+d+n)%n;drawSlide(d);
+  }
+  $("prev").onclick=function(){go(-1)};
+  $("next").onclick=function(){go(1)};
+  $("stage").addEventListener("keydown",function(e){
+    if(e.key==="ArrowLeft")go(-1);
+    if(e.key==="ArrowRight")go(1);
+  });
+  var tx=null;
+  $("stage").addEventListener("touchstart",function(e){tx=e.touches[0].clientX},{passive:true});
+  $("stage").addEventListener("touchend",function(e){
+    if(tx===null)return;
+    var dx=e.changedTouches[0].clientX-tx;tx=null;
+    if(Math.abs(dx)>50)go(dx<0?1:-1);
+  });
+  $("slide").onclick=function(e){
+    var b=e.target.closest("[data-a]");if(!b)return;
+    var a=b.getAttribute("data-a");
+    if(a==="minus"&&qty>1)qty--;
+    if(a==="plus"&&qty<20)qty++;
+    $("sQ").textContent=qty;
+    if(a==="add"){
+      var m=list()[idx];
+      cart[m.id]=(cart[m.id]||0)+qty;updateBar();
+      b.textContent="Qo'shildi";
+      setTimeout(function(){b.textContent="Savatga qo'shish"},1000);
+    }
+  };
+
+  /* ---- Savat ---- */
+  function totals(){
+    var n=0,s=0;
+    for(var id in cart){n+=cart[id];s+=cart[id]*byId(+id).p}
+    return {n:n,s:s};
+  }
+  function updateBar(){
+    var t=totals(),b=$("bar");
+    if(t.n===0){b.classList.remove("on");return}
+    b.classList.add("on");
+    b.textContent="Savat ("+t.n+" ta) "+fmt(t.s);
+  }
+  function drawCart(){
+    var h="";
+    for(var id in cart){
+      var m=byId(+id);
+      h+='<div class="line"><div><strong>'+m.n+'</strong><br>'+fmt(m.p*cart[id])+'</div>'+
+         '<div class="qty"><button type="button" data-d="-1" data-id="'+id+'" aria-label="Kamaytirish">−</button><span>'+cart[id]+'</span>'+
+         '<button type="button" data-d="1" data-id="'+id+'" aria-label="Ko\'paytirish">+</button></div></div>';
+    }
+    $("cLines").innerHTML=h||"<p>Savat bo'sh.</p>";
+    var s=totals().s,ok=pt&&!far;
+    $("cSub").textContent=fmt(s);
+    $("cFee").textContent=ok?fmt(fee):"xaritada belgilang";
+    $("cTotal").textContent=fmt(s+(ok?fee:0));
+  }
+  function msg(t,ok){var e=$("cMsg");e.textContent=t;e.className="msg"+(ok?" ok":"")}
+  $("cLines").onclick=function(e){
+    var id=e.target.getAttribute("data-id");
+    if(!id)return;
+    cart[id]+=+e.target.getAttribute("data-d");
+    if(cart[id]<=0)delete cart[id];
+    drawCart();updateBar();
+    if(totals().n===0)$("dCart").close();
+  };
+
+  /* ---- Yetkazish: masofa, narx, vaqt ---- */
+  function dist(a,b,c,d){
+    var R=6371,r=Math.PI/180,x=(c-a)*r,y=(d-b)*r;
+    var h=Math.sin(x/2)*Math.sin(x/2)+Math.cos(a*r)*Math.cos(c*r)*Math.sin(y/2)*Math.sin(y/2);
+    return 2*R*Math.asin(Math.sqrt(h))*D.roadK;
+  }
+  function setPoint(lat,lng){
+    pt={lat:lat,lng:lng};
+    km=dist(CAFE.lat,CAFE.lng,lat,lng);
+    far=km>D.maxKm;
+    fee=Math.round((D.base+D.perKm*km)/1000)*1000;
+    var eta=Math.round(D.prep+km/D.speed*60);
+    if(dmap){
+      if(!dmark){
+        dmark=L.marker([lat,lng],{draggable:true}).addTo(dmap);
+        dmark.on("dragend",function(){var p=dmark.getLatLng();setPoint(p.lat,p.lng)});
+      }else dmark.setLatLng([lat,lng]);
+    }
+    $("dInfo").textContent=far
+      ?"Kechirasiz, "+D.maxKm+" km dan uzoq manzilga yetkazib bera olmaymiz."
+      :"Masofa: "+km.toFixed(1).replace(".",",")+" km. Yetkazish: "+fmt(fee)+". Taxminan "+eta+" dan "+(eta+10)+" daqiqagacha.";
+    drawCart();
+  }
+  function initDMap(){
+    if(dmap||typeof L==="undefined")return;
+    $("dMap").innerHTML="";$("dMap").style.cssText="height:240px;display:block;padding:0";
+    dmap=L.map("dMap").setView([CAFE.lat,CAFE.lng],13);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(dmap);
+    L.circleMarker([CAFE.lat,CAFE.lng],{radius:9,color:"#1d3b2a",fillColor:"#f3c9d1",fillOpacity:1,weight:3}).addTo(dmap).bindTooltip("Bahor kafe");
+    dmap.on("click",function(e){setPoint(e.latlng.lat,e.latlng.lng)});
+  }
+  $("locBtn").onclick=function(){
+    if(!navigator.geolocation){msg("Brauzer joylashuvni aniqlay olmaydi. Xaritadan belgilang.");return}
+    msg("Aniqlanmoqda...",true);
+    navigator.geolocation.getCurrentPosition(function(p){
+      msg("");
+      if(dmap)dmap.setView([p.coords.latitude,p.coords.longitude],15);
+      setPoint(p.coords.latitude,p.coords.longitude);
+    },function(){msg("Joylashuvni aniqlab bo'lmadi. Xaritadan o'zingiz belgilang.")});
+  };
+  $("bar").onclick=function(){
+    drawCart();msg("");$("cSend").disabled=false;
+    $("dCart").showModal();
+    initDMap();
+    if(dmap)setTimeout(function(){dmap.invalidateSize()},60);
+  };
+
+  /* ---- Buyurtmani saytning o'zida qabul qilish ---- */
+  $("cSend").onclick=function(){
+    var name=$("fName").value.trim(),phone=$("fPhone").value.trim(),addr=$("fAddr").value.trim();
+    if(totals().n===0){msg("Savat bo'sh.");return}
+    if(!name||!phone||!addr){msg("Ism, telefon va manzilni to'ldiring.");return}
+    if(!pt){msg("Xaritada joylashuvingizni belgilang.");return}
+    if(far){msg("Bu manzilga yetkazib bera olmaymiz.");return}
+    if(!FB_PROJECT||!FB_KEY){msg("Buyurtma qabul qilish hali ulanmagan (sinov rejimi). Iltimos, telefon orqali buyurtma bering.");return}
+    var items=[];
+    for(var id in cart){var m=byId(+id);items.push(m.n+" x"+cart[id]+" = "+fmt(m.p*cart[id]))}
+    var body={fields:{
+      name:{stringValue:name},phone:{stringValue:phone},address:{stringValue:addr},
+      items:{stringValue:items.join("\n")},
+      lat:{doubleValue:pt.lat},lng:{doubleValue:pt.lng},distanceKm:{doubleValue:+km.toFixed(2)},
+      deliveryFee:{integerValue:String(fee)},total:{integerValue:String(totals().s+fee)},
+      status:{stringValue:"yangi"},createdAt:{timestampValue:new Date().toISOString()}
+    }};
+    $("cSend").disabled=true;msg("Yuborilmoqda...",true);
+    fetch("https://firestore.googleapis.com/v1/projects/"+FB_PROJECT+"/databases/(default)/documents/orders?key="+FB_KEY,{
+      method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)
+    }).then(function(r){
+      if(!r.ok)throw new Error("x");
+      cart={};updateBar();drawCart();
+      msg("Buyurtmangiz qabul qilindi. Tez orada siz bilan bog'lanamiz.",true);
+    }).catch(function(){
+      $("cSend").disabled=false;
+      msg("Buyurtma yuborilmadi. Internetni tekshirib qayta urinib ko'ring.");
+    });
+  };
+
+  document.querySelectorAll("dialog").forEach(function(d){
+    d.addEventListener("click",function(e){
+      if(e.target===d||e.target.hasAttribute("data-close"))d.close();
+    });
+  });
+
+  /* ---- Kafe xaritasi ---- */
+  $("dText").textContent="Shahar bo'ylab, "+D.maxKm+" km gacha. Narx va vaqt masofaga qarab buyurtma paytida hisoblanadi.";
+  $("route").href="https://www.google.com/maps/dir/?api=1&destination="+CAFE.lat+","+CAFE.lng;
+  if(typeof L!=="undefined"){
+    $("cMap").innerHTML="";$("cMap").style.cssText="height:340px;display:block;padding:0";
+    var cm=L.map("cMap",{scrollWheelZoom:false}).setView([CAFE.lat,CAFE.lng],15);
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"}).addTo(cm);
+    L.marker([CAFE.lat,CAFE.lng]).addTo(cm).bindPopup("Bahor kafe").openPopup();
+  }
+
+  drawCats();drawSlide(1);
+
+  /* ---- Katta sarlavha: aylantirganda harflar yo'qoladi ---- */
+  var reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var hero=document.querySelector(".hero"),letters=document.querySelectorAll("#title span"),tick=false;
+  function fade(){
+    tick=false;
+    var p=Math.min(Math.max(window.scrollY/(hero.offsetHeight*.55),0),1);
+    for(var i=0;i<letters.length;i++){
+      var t=Math.min(Math.max((p-i*.12)/.52,0),1);
+      letters[i].style.opacity=1-t;
+      letters[i].style.transform="translateY("+(-t*90)+"px) rotate("+((i%2?1:-1)*t*14)+"deg)";
+    }
+  }
+  if(!reduce){
+    window.addEventListener("scroll",function(){if(!tick){tick=true;requestAnimationFrame(fade)}},{passive:true});
+    fade();
+    for(var i=0;i<14;i++){
+      var pe=document.createElement("span"),s=.6+Math.random()*.9;
+      pe.className="petal";
+      pe.style.left=(Math.random()*100)+"%";
+      pe.style.animationDuration=(9+Math.random()*8)+"s";
+      pe.style.animationDelay=(-Math.random()*12)+"s";
+      pe.style.width=(16*s)+"px";pe.style.height=(22*s)+"px";
+      hero.appendChild(pe);
+    }
+  }
+})();
+</script>
+</body>
+</html>
